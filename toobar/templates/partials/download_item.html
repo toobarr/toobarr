@@ -1,0 +1,45 @@
+<tr id="download-{{ dl.download.id }}" class="download-row">
+    <td>
+        {% if let Some(thumb) = dl.video_thumbnail.as_ref() %}
+        <img src="{{ thumb }}" alt="" class="download-thumbnail">
+        {% endif %}
+        {{ dl.video_title }}
+    </td>
+    <td>{{ dl.channel_name }}</td>
+    <td class="dl-status">
+        {% if dl.download.status == "completed" %}
+        <span class="status-completed">Completed</span>
+        {% else if dl.download.status == "downloading" %}
+        <span class="status-downloading">Downloading</span>
+        {% else if dl.download.status == "failed" %}
+        <span class="status-failed">Failed</span>
+        {% else %}
+        <span class="status-pending">Pending</span>
+        {% endif %}
+    </td>
+    <td class="dl-progress">
+        {% if dl.download.status == "downloading" %}
+        <progress value="{{ dl.download.progress_int() }}" max="100"></progress>
+        <span>{{ dl.download.progress_int() }}%</span>
+        {% else if dl.download.status == "completed" %}
+        100%
+        {% else if dl.download.status == "failed" %}
+        {% if let Some(err) = dl.download.error_message.as_ref() %}
+        <small class="error-message">{{ err }}</small>
+        {% endif %}
+        {% else %}
+        -
+        {% endif %}
+    </td>
+    <td class="dl-actions">
+        {% if dl.download.status == "downloading" %}
+        <button hx-post="/api/downloads/{{ dl.download.id }}/cancel" hx-swap="none" class="secondary outline">
+            Cancel
+        </button>
+        {% else if dl.download.status == "failed" %}
+        <button hx-post="/api/downloads/{{ dl.download.id }}/retry" hx-swap="none" class="outline">
+            Retry
+        </button>
+        {% endif %}
+    </td>
+</tr>

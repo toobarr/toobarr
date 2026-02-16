@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Tubarr - Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid">
+    <article>
+        <header>Channels</header>
+        <p><strong>{{ channel_count }}</strong> channels tracked</p>
+        <footer>
+            <a href="/channels" role="button">View Channels</a>
+        </footer>
+    </article>
+
+    <article>
+        <header>Videos</header>
+        <p><strong>{{ video_count }}</strong> videos available</p>
+        <footer>
+            <a href="/channels" role="button" class="secondary">Browse Videos</a>
+        </footer>
+    </article>
+
+    <article>
+        <header>Downloads</header>
+        <p><strong>{{ active_downloads }}</strong> active, <strong>{{ completed_downloads }}</strong> completed</p>
+        <footer>
+            <a href="/downloads" role="button" class="contrast">View Queue</a>
+        </footer>
+    </article>
+</div>
+
+{% if !recent_downloads.is_empty() %}
+<section>
+    <h2>Recent Downloads</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Video</th>
+                <th>Channel</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dl in recent_downloads %}
+            <tr>
+                <td>{{ dl.video_title }}</td>
+                <td>{{ dl.channel_name }}</td>
+                <td>
+                    {% if dl.download.status == "completed" %}
+                    <span class="status-completed">Completed</span>
+                    {% else if dl.download.status == "downloading" %}
+                    <span class="status-downloading">Downloading ({{ dl.download.progress_int() }}%)</span>
+                    {% else if dl.download.status == "failed" %}
+                    <span class="status-failed">Failed</span>
+                    {% else %}
+                    <span class="status-pending">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}

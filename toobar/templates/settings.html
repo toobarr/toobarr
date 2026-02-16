@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Tubarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Settings</h1>
+    <p>Configure Tubarr preferences</p>
+</hgroup>
+
+<article>
+    <header>General</header>
+    <form hx-post="/api/settings" hx-swap="none">
+        <label for="download_path">
+            Download Path
+            <input type="text" id="download_path" name="download_path" value="{{ download_path }}" required>
+            <small>Directory where videos will be saved</small>
+        </label>
+
+        <label for="max_concurrent_downloads">
+            Max Concurrent Downloads
+            <input type="number" id="max_concurrent_downloads" name="max_concurrent_downloads"
+                   value="{{ max_concurrent_downloads }}" min="1" max="10" required>
+            <small>Maximum number of simultaneous downloads</small>
+        </label>
+
+        <label for="extractor_args">
+            Extractor Arguments
+            <textarea id="extractor_args" name="extractor_args" rows="4">{{ extractor_args }}</textarea>
+            <small>One extractor argument per line (passed as --extractor-args to yt-dlp)</small>
+        </label>
+
+        <details>
+            <summary>External Programs</summary>
+            <p><small>Override paths for external binaries. Leave empty to use the default from PATH.</small></p>
+            {% for bin in binaries %}
+            <label for="{{ bin.setting_key }}">
+                {{ bin.name }}
+                {% if bin.available %}
+                <mark class="binary-available">{{ bin.version.as_deref().unwrap_or("found") }}</mark>
+                {% else %}
+                <mark class="binary-missing">Not found</mark>
+                {% endif %}
+                <input type="text" id="{{ bin.setting_key }}" name="{{ bin.setting_key }}"
+                       value="{{ bin.path }}" placeholder="{{ bin.name }}">
+            </label>
+            {% endfor %}
+        </details>
+
+        <button type="submit">Save Settings</button>
+    </form>
+</article>
+
+<article>
+    <header>Cookies</header>
+    {% if has_cookies %}
+    <p>A cookies file is currently loaded.</p>
+    <div role="group">
+        <form hx-post="/api/settings/cookies" hx-encoding="multipart/form-data" hx-swap="none"
+              hx-on::after-request="if(event.detail.successful) location.reload()">
+            <input type="file" name="cookies_file" accept=".txt" required>
+            <button type="submit">Replace Cookies</button>
+        </form>
+        <button class="secondary" hx-delete="/api/settings/cookies" hx-swap="none"
+                hx-on::after-request="if(event.detail.successful) location.reload()">
+            Delete Cookies
+        </button>
+    </div>
+    {% else %}
+    <p>No cookies file loaded. Upload a Netscape HTTP cookie file to authenticate with YouTube.</p>
+    <form hx-post="/api/settings/cookies" hx-encoding="multipart/form-data" hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) location.reload()">
+        <input type="file" name="cookies_file" accept=".txt" required>
+        <button type="submit">Upload Cookies</button>
+    </form>
+    {% endif %}
+</article>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Channels - Tubarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Channels</h1>
+    <p>Manage your YouTube channel subscriptions</p>
+</hgroup>
+
+<p>
+    <a href="/channels/new" role="button">Add Channel</a>
+</p>
+
+{% if channels.is_empty() %}
+<article>
+    <p>No channels yet. Add your first YouTube channel to get started.</p>
+</article>
+{% else %}
+<div class="grid channel-grid">
+    {% for channel in channels %}
+    {% include "partials/channel_card.html" %}
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

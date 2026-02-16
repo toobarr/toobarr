@@ -1,0 +1,19 @@
+services:
+  toobarr:
+    build:
+      context: ..
+      dockerfile: toobarr/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./downloads:/app/downloads
+    environment:
+      - DATABASE_PATH=/app/data/toobarr.db
+    depends_on:
+      - bgutil
+    restart: unless-stopped
+
+  bgutil:
+    image: brainicism/bgutil-ytdlp-pot-provider
+    restart: unless-stopped

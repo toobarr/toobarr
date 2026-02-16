@@ -1,0 +1,6 @@
+downloads/
+target/
+cookies*
+data/
+static/
+tubarr.db

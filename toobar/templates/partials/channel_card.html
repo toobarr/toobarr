@@ -1,0 +1,18 @@
+<article class="channel-card">
+    {% if let Some(thumb) = channel.thumbnail_url.as_ref() %}
+    <img src="{{ thumb }}" alt="{{ channel.name }}" class="channel-thumbnail">
+    {% endif %}
+    <header>
+        <a href="/channels/{{ channel.id }}">{{ channel.name }}</a>
+    </header>
+    <p>
+        {% if let Some(count) = channel.video_count %}
+        {{ count }} videos
+        {% else %}
+        No videos synced
+        {% endif %}
+    </p>
+    <footer>
+        <a href="/channels/{{ channel.id }}" role="button" class="outline">View</a>
+    </footer>
+</article>

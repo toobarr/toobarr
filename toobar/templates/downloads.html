@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Downloads - Tubarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Downloads</h1>
+    <p>Manage your video download queue</p>
+</hgroup>
+
+{% if downloads.is_empty() %}
+<article>
+    <p>No downloads yet. Browse channels and click download on videos to add them to the queue.</p>
+</article>
+{% else %}
+<table id="download-table">
+    <thead>
+        <tr>
+            <th>Video</th>
+            <th>Channel</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="download-list">
+        {% for dl in downloads %}
+        {% include "partials/download_item.html" %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<script>
+(function() {
+    var pollTimer = null;
+    var isPolling = false;
+
+    function pollDownloads() {
+        if (isPolling) return;
+        isPolling = true;
+
+        fetch("/api/downloads/active")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                isPolling = false;
+                var downloads = data.downloads;
+                var hasActive = false;
+
+                for (var id in downloads) {
+                    if (!downloads.hasOwnProperty(id)) continue;
+                    var d = downloads[id];
+                    var row = document.getElementById("download-" + id);
+                    if (!row) continue;
+                    var status = row.querySelector(".dl-status");
+                    var progress = row.querySelector(".dl-progress");
+                    var actions = row.querySelector(".dl-actions");
+                    if (!status || !progress || !actions) continue;
+
+                    if (d.status === "started" || d.status === "progress" || d.status === "processing") {
+                        hasActive = true;
+                    }
+
+                    if (d.status === "started") {
+                        status.innerHTML = '<span class="status-downloading">Starting</span>';
+                        progress.innerHTML = '<progress max="100"></progress> 0%';
+                        if (actions.innerHTML.indexOf('Cancel') === -1) {
+                            actions.innerHTML = '<button hx-post="/api/downloads/' + id + '/cancel" hx-swap="none" class="secondary outline">Cancel</button>';
+                            htmx.process(actions);
+                        }
+                    } else if (d.status === "progress") {
+                        status.innerHTML = '<span class="status-downloading">Downloading</span>';
+                        var pct = Math.round(d.percent || 0);
+                        var speedStr = d.speed || "-";
+                        var etaStr = d.eta || "-";
+                        progress.innerHTML = '<progress value="' + pct + '" max="100"></progress> ' + pct + '% (' + speedStr + ', ETA: ' + etaStr + ')';
+                        if (actions.innerHTML.indexOf('Cancel') === -1) {
+                            actions.innerHTML = '<button hx-post="/api/downloads/' + id + '/cancel" hx-swap="none" class="secondary outline">Cancel</button>';
+                            htmx.process(actions);
+                        }
+                    } else if (d.status === "processing") {
+                        status.innerHTML = '<span class="status-downloading">Processing</span>';
+                        progress.innerHTML = d.error || "Post-processing...";
+                    } else if (d.status === "completed") {
+                        status.innerHTML = '<span class="status-completed">Completed</span>';
+                        progress.innerHTML = '100%';
+                        actions.innerHTML = '';
+                    } else if (d.status === "failed") {
+                        status.innerHTML = '<span class="status-failed">Failed</span>';
+                        var errMsg = d.error || "Unknown error";
+                        progress.innerHTML = '<small class="error-message">' + errMsg + '</small>';
+                        if (actions.innerHTML.indexOf('Retry') === -1) {
+                            actions.innerHTML = '<button hx-post="/api/downloads/' + id + '/retry" hx-swap="none" class="outline">Retry</button>';
+                            htmx.process(actions);
+                        }
+                    }
+                }
+
+                var shouldPoll = hasActive || data.active_count > 0;
+                if (shouldPoll && !pollTimer) {
+                    pollTimer = setInterval(pollDownloads, 1000);
+                } else if (!shouldPoll && pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+            })
+            .catch(function(err) {
+                isPolling = false;
+                console.error("Failed to poll downloads:", err);
+            });
+    }
+
+    pollDownloads();
+})();
+</script>
+{% endblock %}

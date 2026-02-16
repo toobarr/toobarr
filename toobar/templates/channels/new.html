@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Add Channel - Tubarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Add Channel</h1>
+    <p>Add a YouTube channel to track and download videos</p>
+</hgroup>
+
+<article>
+    <form hx-post="/api/channels" hx-target="body" hx-swap="innerHTML" hx-indicator="#loading">
+        <label for="url">
+            Channel URL
+            <input type="url" id="url" name="url" placeholder="https://www.youtube.com/@channel" required>
+            <small>Enter the full YouTube channel URL</small>
+        </label>
+
+        <div class="grid">
+            <button type="submit" class="add-channel-btn">
+                <span class="btn-text">Add Channel</span>
+                <span class="btn-loading htmx-indicator">Adding...</span>
+            </button>
+            <a href="/channels" role="button" class="secondary">Cancel</a>
+        </div>
+
+        <div id="loading" class="htmx-indicator loading-message">
+            <p aria-busy="true">Fetching channel information from YouTube...</p>
+            <small>This may take a moment while we retrieve channel metadata and video list.</small>
+        </div>
+    </form>
+</article>
+{% endblock %}

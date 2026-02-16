@@ -1,0 +1,23 @@
+<article class="video-card">
+    {% if let Some(thumb) = video.thumbnail_url.as_ref() %}
+    <img src="{{ thumb }}" alt="{{ video.title }}" class="video-thumbnail">
+    {% endif %}
+    <header>{{ video.title }}</header>
+    <p class="video-meta">
+        <span>{{ video.format_duration() }}</span>
+        {% if let Some(date) = video.upload_date.as_ref() %}
+        <span>{{ date }}</span>
+        {% endif %}
+        {% if let Some(views) = video.view_count %}
+        <span>{{ views }} views</span>
+        {% endif %}
+    </p>
+    <footer>
+        <button hx-post="/api/videos/{{ video.id }}/download" hx-swap="none" class="outline">
+            Download
+        </button>
+        <a href="{{ video.webpage_url }}" target="_blank" rel="noopener" role="button" class="secondary outline">
+            Watch
+        </a>
+    </footer>
+</article>

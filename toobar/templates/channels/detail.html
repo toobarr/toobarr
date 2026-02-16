@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel.name }} - Tubarr{% endblock %}
+
+{% block content %}
+<div class="channel-detail-header">
+    {% if let Some(thumb) = channel.thumbnail_url.as_ref() %}
+    <img src="{{ thumb }}" alt="{{ channel.name }}" class="channel-avatar">
+    {% endif %}
+    <hgroup>
+        <h1>{{ channel.name }}</h1>
+        {% if let Some(desc) = channel.description.as_ref() %}
+        <p>{{ desc }}</p>
+        {% endif %}
+    </hgroup>
+</div>
+
+<div class="channel-actions">
+    <button hx-post="/api/channels/{{ channel.id }}/sync" hx-swap="none" class="secondary">
+        Sync Videos
+    </button>
+    <button hx-delete="/api/channels/{{ channel.id }}" hx-confirm="Are you sure you want to delete this channel?" hx-target="body" class="contrast">
+        Delete Channel
+    </button>
+</div>
+
+<p>
+    {% if let Some(count) = channel.video_count %}
+    <strong>{{ count }}</strong> videos
+    {% endif %}
+    {% if let Some(synced) = channel.last_synced_at.as_ref() %}
+    | Last synced: {{ synced }}
+    {% endif %}
+</p>
+
+{% if videos.is_empty() %}
+<article>
+    <p>No videos found. Click "Sync Videos" to fetch the latest videos from this channel.</p>
+</article>
+{% else %}
+<div class="video-grid">
+    {% for video in videos %}
+    <article class="video-card">
+        {% if let Some(thumb) = video.thumbnail_url.as_ref() %}
+        <img src="{{ thumb }}" alt="{{ video.title }}" class="video-thumbnail">
+        {% endif %}
+        <header>{{ video.title }}</header>
+        <p class="video-meta">
+            <span>{{ video.format_duration() }}</span>
+            {% if let Some(date) = video.upload_date.as_ref() %}
+            <span>{{ date }}</span>
+            {% endif %}
+            {% if let Some(views) = video.view_count %}
+            <span>{{ views }} views</span>
+            {% endif %}
+        </p>
+        <footer>
+            {% if let Some(status) = download_statuses.get(video.id.as_str()) %}
+                {% if status.as_str() == "completed" %}
+                <button disabled class="outline btn-success">Downloaded</button>
+                {% else if status.as_str() == "downloading" %}
+                <button disabled class="outline" aria-busy="true">Downloading...</button>
+                {% else if status.as_str() == "pending" %}
+                <button disabled class="outline" aria-busy="true">Pending...</button>
+                {% else if status.as_str() == "failed" %}
+                <span class="status-failed">Failed</span>
+                <button hx-post="/api/videos/{{ video.id }}/download" hx-swap="none" class="outline">
+                    Retry
+                </button>
+                {% endif %}
+            {% else %}
+            <button hx-post="/api/videos/{{ video.id }}/download" hx-swap="none" class="outline">
+                Download
+            </button>
+            {% endif %}
+            <a href="{{ video.webpage_url }}" target="_blank" rel="noopener" role="button" class="secondary outline">
+                Watch
+            </a>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
