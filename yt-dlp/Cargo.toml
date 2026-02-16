@@ -15,3 +15,10 @@ futures-core = "0.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

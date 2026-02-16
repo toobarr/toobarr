@@ -24,7 +24,7 @@ impl CommandBuilder {
     }
 
     pub fn args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.args.extend(args.into_iter().map(|a| a.into()));
+        self.args.extend(args.into_iter().map(Into::into));
         self
     }
 
@@ -96,7 +96,7 @@ impl CommandBuilder {
         self.arg("--cookies").arg(path.as_ref().to_string_lossy().to_string())
     }
 
-    pub fn cookies_file_opt(self, path: &Option<PathBuf>) -> Self {
+    pub fn cookies_file_opt(self, path: Option<&PathBuf>) -> Self {
         match path {
             Some(p) => self.cookies_file(p),
             None => self
@@ -268,12 +268,12 @@ mod tests {
     fn test_command_builder_cookies_file_opt() {
         let some_path = Some(PathBuf::from("/tmp/cookies.txt"));
         let builder = CommandBuilder::new("yt-dlp")
-            .cookies_file_opt(&some_path);
+            .cookies_file_opt(some_path.as_ref());
         assert_eq!(builder.get_args(), &["--cookies", "/tmp/cookies.txt"]);
 
         let none_path: Option<PathBuf> = None;
         let builder = CommandBuilder::new("yt-dlp")
-            .cookies_file_opt(&none_path);
+            .cookies_file_opt(none_path.as_ref());
         assert!(builder.get_args().is_empty());
     }
 

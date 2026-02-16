@@ -10,6 +10,7 @@ pub struct DownloadProgress {
 }
 
 impl DownloadProgress {
+    #[must_use]
     pub fn format_speed(&self) -> Option<String> {
         self.speed.map(|s| {
             if s >= 1_000_000.0 {
@@ -17,13 +18,15 @@ impl DownloadProgress {
             } else if s >= 1_000.0 {
                 format!("{:.2} KB/s", s / 1_000.0)
             } else {
-                format!("{:.0} B/s", s)
+                format!("{s:.0} B/s")
             }
         })
     }
 
+    #[must_use]
     pub fn format_eta(&self) -> Option<String> {
         self.eta.map(|e| {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let secs = e as u64;
             let mins = secs / 60;
             let hours = mins / 60;
@@ -35,6 +38,7 @@ impl DownloadProgress {
         })
     }
 
+    #[must_use]
     pub fn format_size(&self) -> String {
         format_bytes(self.downloaded_bytes)
     }
@@ -44,6 +48,7 @@ impl DownloadProgress {
     }
 }
 
+#[allow(clippy::cast_precision_loss)]
 fn format_bytes(bytes: u64) -> String {
     if bytes >= 1_000_000_000 {
         format!("{:.2} GB", bytes as f64 / 1_000_000_000.0)
@@ -52,7 +57,7 @@ fn format_bytes(bytes: u64) -> String {
     } else if bytes >= 1_000 {
         format!("{:.2} KB", bytes as f64 / 1_000.0)
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }
 
@@ -71,10 +76,12 @@ pub enum DownloadEvent {
 }
 
 impl DownloadEvent {
+    #[must_use]
     pub fn is_error(&self) -> bool {
         matches!(self, DownloadEvent::Error { .. })
     }
 
+    #[must_use]
     pub fn is_finished(&self) -> bool {
         matches!(self, DownloadEvent::Finished { .. })
     }

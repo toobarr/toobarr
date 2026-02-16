@@ -30,6 +30,7 @@ impl Default for YtDlp {
 }
 
 impl YtDlp {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             binary: PathBuf::from("yt-dlp"),
@@ -70,6 +71,9 @@ impl YtDlp {
         self.env_vars.insert(key, value);
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the binary is not found or not executable.
     pub async fn check_binary(&self) -> Result<String> {
         let output = Command::new(&self.binary)
             .arg("--version")
@@ -83,6 +87,9 @@ impl YtDlp {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the command fails or the output cannot be parsed.
     pub async fn get_video_info(&self, url: &str) -> Result<VideoInfo> {
         let output = self
             .command()
@@ -106,6 +113,9 @@ impl YtDlp {
         Ok(info)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the command fails or no playlist entries are found.
     pub async fn get_playlist_info(&self, url: &str) -> Result<PlaylistInfo> {
         let output = self
             .command()
@@ -166,6 +176,9 @@ impl YtDlp {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the command fails or no formats are available.
     pub async fn list_formats(&self, url: &str) -> Result<Vec<Format>> {
         let info = self.get_video_info(url).await?;
         if info.formats.is_empty() {
@@ -175,11 +188,17 @@ impl YtDlp {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the download command fails.
     pub async fn download(&self, url: &str, output: impl AsRef<Path>) -> Result<PathBuf> {
         self.download_with_options(url, output, &DownloadOptions::default())
             .await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the download command fails.
     pub async fn download_with_options(
         &self,
         url: &str,
@@ -208,6 +227,9 @@ impl YtDlp {
         Ok(output_path)
     }
 
+    /// # Panics
+    ///
+    /// Panics if stdout or stderr cannot be captured from the child process.
     pub fn download_with_progress(
         &self,
         url: &str,
@@ -227,7 +249,7 @@ impl YtDlp {
             yield DownloadEvent::Extracting { url: url.clone() };
 
             let mut builder = CommandBuilder::new(&binary)
-                .cookies_file_opt(&cookies_file)
+                .cookies_file_opt(cookies_file.as_ref())
                 .args(extra_args.iter().map(String::as_str))
                 .with_options(&options)
                 .output(&output_path)
@@ -273,18 +295,21 @@ impl YtDlp {
 
             let status = child.wait().await?;
 
-            if !status.success() {
-                yield DownloadEvent::Error {
-                    message: format!("yt-dlp exited with code {}", status.code().unwrap_or(-1))
-                };
-            } else {
+            if status.success() {
                 let filename = current_filename
                     .unwrap_or_else(|| output_path.to_string_lossy().to_string());
                 yield DownloadEvent::Finished { filename };
+            } else {
+                yield DownloadEvent::Error {
+                    message: format!("yt-dlp exited with code {}", status.code().unwrap_or(-1))
+                };
             }
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the download command fails.
     pub async fn download_audio(
         &self,
         url: &str,
@@ -298,13 +323,14 @@ impl YtDlp {
         self.download_with_options(url, output, &options).await
     }
 
+    #[must_use]
     pub fn build_download(&self, url: &str) -> DownloadBuilder {
         DownloadBuilder::new(self.clone(), url.to_string())
     }
 
     fn command(&self) -> CommandBuilder {
         let mut builder = CommandBuilder::new(&self.binary)
-            .cookies_file_opt(&self.cookies_file)
+            .cookies_file_opt(self.cookies_file.as_ref())
             .args(self.extra_args.iter().map(String::as_str));
 
         if let Some(ref ffmpeg_path) = self.ffmpeg_location {
@@ -326,11 +352,8 @@ fn parse_progress_line(line: &str, current_filename: &mut Option<String>) -> Opt
         });
     }
 
-    if line.starts_with("[download]")
-        && line.contains('%')
-        && let Some(progress) = parse_download_progress(line)
-    {
-        return Some(DownloadEvent::Progress(progress));
+    if line.starts_with("[download]") && line.contains('%') {
+        return Some(DownloadEvent::Progress(parse_download_progress(line)));
     }
 
     if line.starts_with("download:")
@@ -341,10 +364,8 @@ fn parse_progress_line(line: &str, current_filename: &mut Option<String>) -> Opt
 
     // Handle bare progress lines (e.g., " 14.6%  887.84MiB    7.61MiB/s 01:39")
     // These occur when using --newline without a progress template prefix
-    if line.contains('%')
-        && let Some(progress) = parse_download_progress(line)
-    {
-        return Some(DownloadEvent::Progress(progress));
+    if line.contains('%') {
+        return Some(DownloadEvent::Progress(parse_download_progress(line)));
     }
 
     if line.starts_with("[Merger]") || line.contains("Merging formats") {
@@ -391,7 +412,7 @@ fn parse_progress_line(line: &str, current_filename: &mut Option<String>) -> Opt
     None
 }
 
-fn parse_download_progress(line: &str) -> Option<DownloadProgress> {
+fn parse_download_progress(line: &str) -> DownloadProgress {
     let parts: Vec<&str> = line.split_whitespace().collect();
 
     let mut percent: Option<f64> = None;
@@ -402,25 +423,27 @@ fn parse_download_progress(line: &str) -> Option<DownloadProgress> {
     for (i, part) in parts.iter().enumerate() {
         if part.ends_with('%') {
             percent = part.trim_end_matches('%').parse().ok();
-        } else if part.contains("iB") || part.contains("B") {
+        } else if part.contains("iB") || part.contains('B') {
             if i > 0 && parts.get(i - 1).is_some_and(|p| p.ends_with('%')) {
                 total_bytes = parse_size(part);
             } else if part.contains("/s") {
                 speed = parse_speed(part);
             }
-        } else if part.starts_with("ETA") || (i > 0 && parts.get(i - 1) == Some(&"ETA")) {
-            continue;
         } else if part.contains(':') && !part.starts_with('[') {
-            eta = parse_eta(part);
+            let prev_is_eta = i > 0 && parts.get(i - 1) == Some(&"ETA");
+            if !prev_is_eta {
+                eta = parse_eta(part);
+            }
         }
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
     let downloaded_bytes = match (percent, total_bytes) {
         (Some(p), Some(t)) => ((p / 100.0) * t as f64) as u64,
         _ => 0
     };
 
-    Some(DownloadProgress {
+    DownloadProgress {
         downloaded_bytes,
         total_bytes,
         speed,
@@ -428,7 +451,7 @@ fn parse_download_progress(line: &str) -> Option<DownloadProgress> {
         percent,
         fragment_index: None,
         fragment_count: None
-    })
+    }
 }
 
 fn parse_template_progress(line: &str) -> Option<DownloadProgress> {
@@ -447,6 +470,7 @@ fn parse_template_progress(line: &str) -> Option<DownloadProgress> {
     let speed = parts.get(2).and_then(|s| parse_speed(s));
     let eta = parts.get(3).and_then(|s| parse_eta(s));
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
     let downloaded_bytes = match (percent, total_bytes) {
         (Some(p), Some(t)) => ((p / 100.0) * t as f64) as u64,
         _ => 0
@@ -463,6 +487,7 @@ fn parse_template_progress(line: &str) -> Option<DownloadProgress> {
     })
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
 fn parse_size(s: &str) -> Option<u64> {
     let s = s.trim();
     if s == "N/A" || s == "~" || s.is_empty() {
@@ -491,6 +516,7 @@ fn parse_size(s: &str) -> Option<u64> {
     None
 }
 
+#[allow(clippy::cast_precision_loss)]
 fn parse_speed(s: &str) -> Option<f64> {
     let s = s.trim().trim_end_matches("/s");
     parse_size(s).map(|b| b as f64)
@@ -535,61 +561,75 @@ impl DownloadBuilder {
         }
     }
 
+    #[must_use]
     pub fn format(mut self, format: OutputFormat) -> Self {
         self.options.format = format;
         self
     }
 
+    #[must_use]
     pub fn container(mut self, container: Container) -> Self {
         self.options.container = container;
         self
     }
 
+    #[must_use]
     pub fn output_template(mut self, template: impl Into<String>) -> Self {
         self.options.output_template = Some(template.into());
         self
     }
 
+    #[must_use]
     pub fn embed_thumbnail(mut self, embed: bool) -> Self {
         self.options.embed_thumbnail = embed;
         self
     }
 
+    #[must_use]
     pub fn embed_metadata(mut self, embed: bool) -> Self {
         self.options.embed_metadata = embed;
         self
     }
 
+    #[must_use]
     pub fn embed_subtitles(mut self, embed: bool) -> Self {
         self.options.embed_subtitles = embed;
         self
     }
 
+    #[must_use]
     pub fn extract_audio(mut self, extract: bool) -> Self {
         self.options.extract_audio = extract;
         self
     }
 
+    #[must_use]
     pub fn audio_format(mut self, format: impl Into<String>) -> Self {
         self.options.audio_format = Some(format.into());
         self
     }
 
+    #[must_use]
     pub fn audio_quality(mut self, quality: impl Into<String>) -> Self {
         self.options.audio_quality = Some(quality.into());
         self
     }
 
+    #[must_use]
     pub fn cookies_file(mut self, path: impl Into<PathBuf>) -> Self {
         self.options.cookies_file = Some(path.into());
         self
     }
 
+    #[must_use]
     pub fn rate_limit(mut self, limit: impl Into<String>) -> Self {
         self.options.rate_limit = Some(limit.into());
         self
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the download command fails.
     pub async fn download(self, output: impl AsRef<Path>) -> Result<PathBuf> {
         self.client
             .download_with_options(&self.url, output, &self.options)

@@ -12,6 +12,7 @@ pub enum OutputFormat {
 }
 
 impl OutputFormat {
+    #[must_use]
     pub fn as_arg(&self) -> Option<String> {
         match self {
             OutputFormat::Default => None,
@@ -39,6 +40,7 @@ pub enum Container {
 }
 
 impl Container {
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Container::Default => None,
@@ -55,6 +57,7 @@ impl Container {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct DownloadOptions {
     pub format: OutputFormat,
     pub container: Container,
@@ -75,90 +78,108 @@ pub struct DownloadOptions {
 }
 
 impl DownloadOptions {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn format(mut self, format: OutputFormat) -> Self {
         self.format = format;
         self
     }
 
+    #[must_use]
     pub fn container(mut self, container: Container) -> Self {
         self.container = container;
         self
     }
 
+    #[must_use]
     pub fn output_template(mut self, template: impl Into<String>) -> Self {
         self.output_template = Some(template.into());
         self
     }
 
+    #[must_use]
     pub fn embed_thumbnail(mut self, embed: bool) -> Self {
         self.embed_thumbnail = embed;
         self
     }
 
+    #[must_use]
     pub fn embed_metadata(mut self, embed: bool) -> Self {
         self.embed_metadata = embed;
         self
     }
 
+    #[must_use]
     pub fn embed_subtitles(mut self, embed: bool) -> Self {
         self.embed_subtitles = embed;
         self
     }
 
+    #[must_use]
     pub fn extract_audio(mut self, extract: bool) -> Self {
         self.extract_audio = extract;
         self
     }
 
+    #[must_use]
     pub fn audio_format(mut self, format: impl Into<String>) -> Self {
         self.audio_format = Some(format.into());
         self
     }
 
+    #[must_use]
     pub fn audio_quality(mut self, quality: impl Into<String>) -> Self {
         self.audio_quality = Some(quality.into());
         self
     }
 
+    #[must_use]
     pub fn subtitles_langs(mut self, langs: Vec<String>) -> Self {
         self.subtitles_langs = langs;
         self
     }
 
+    #[must_use]
     pub fn write_subtitles(mut self, write: bool) -> Self {
         self.write_subtitles = write;
         self
     }
 
+    #[must_use]
     pub fn write_thumbnail(mut self, write: bool) -> Self {
         self.write_thumbnail = write;
         self
     }
 
+    #[must_use]
     pub fn cookies_file(mut self, path: impl Into<PathBuf>) -> Self {
         self.cookies_file = Some(path.into());
         self
     }
 
+    #[must_use]
     pub fn rate_limit(mut self, limit: impl Into<String>) -> Self {
         self.rate_limit = Some(limit.into());
         self
     }
 
+    #[must_use]
     pub fn concurrent_fragments(mut self, count: u32) -> Self {
         self.concurrent_fragments = Some(count);
         self
     }
 
+    #[must_use]
     pub fn extra_arg(mut self, arg: impl Into<String>) -> Self {
         self.extra_args.push(arg.into());
         self
     }
 
+    #[must_use]
     pub fn extra_args(mut self, args: Vec<String>) -> Self {
         self.extra_args.extend(args);
         self

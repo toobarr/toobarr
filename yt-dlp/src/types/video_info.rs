@@ -79,6 +79,7 @@ pub struct VideoInfo {
 }
 
 impl VideoInfo {
+    #[must_use]
     pub fn best_thumbnail(&self) -> Option<&str> {
         if let Some(ref url) = self.thumbnail {
             return Some(url);
@@ -142,21 +143,25 @@ pub struct Format {
 }
 
 impl Format {
+    #[must_use]
     pub fn has_video(&self) -> bool {
         self.vcodec.as_ref().is_some_and(|v| v != "none")
     }
 
+    #[must_use]
     pub fn has_audio(&self) -> bool {
         self.acodec.as_ref().is_some_and(|a| a != "none")
     }
 
+    #[must_use]
     pub fn display_size(&self) -> Option<String> {
         match (self.width, self.height) {
-            (Some(w), Some(h)) => Some(format!("{}x{}", w, h)),
+            (Some(w), Some(h)) => Some(format!("{w}x{h}")),
             _ => self.resolution.clone()
         }
     }
 
+    #[must_use]
     pub fn estimated_size(&self) -> Option<u64> {
         self.filesize.or(self.filesize_approx)
     }
