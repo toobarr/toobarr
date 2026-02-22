@@ -179,7 +179,13 @@ fn format_upload_date(date: &str) -> String {
 #[derive(serde::Deserialize)]
 struct FfprobeOutput {
     #[serde(default)]
-    streams: Vec<FfprobeStream>
+    streams: Vec<FfprobeStream>,
+    format: Option<FfprobeFormat>
+}
+
+#[derive(serde::Deserialize)]
+struct FfprobeFormat {
+    duration: Option<String>
 }
 
 #[derive(serde::Deserialize)]
@@ -198,7 +204,14 @@ struct FfprobeStream {
 
 pub async fn probe_media(path: &str, ffprobe_bin: &str) -> Option<MediaInfo> {
     let output = tokio::process::Command::new(ffprobe_bin)
-        .args(["-v", "quiet", "-print_format", "json", "-show_streams"])
+        .args([
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            "-show_format"
+        ])
         .arg(path)
         .output()
         .await
@@ -210,13 +223,21 @@ pub async fn probe_media(path: &str, ffprobe_bin: &str) -> Option<MediaInfo> {
     }
 
     let parsed: FfprobeOutput = serde_json::from_slice(&output.stdout).ok()?;
-    let video = parse_video_stream(&parsed.streams);
+    let format_duration = parsed
+        .format
+        .as_ref()
+        .and_then(|f| f.duration.as_deref())
+        .and_then(|d| d.parse::<f64>().ok());
+    let video = parse_video_stream(&parsed.streams, format_duration);
     let audio = parse_audio_stream(&parsed.streams);
 
     Some(MediaInfo { video, audio })
 }
 
-fn parse_video_stream(streams: &[FfprobeStream]) -> Option<VideoStream> {
+fn parse_video_stream(
+    streams: &[FfprobeStream],
+    format_duration: Option<f64>
+) -> Option<VideoStream> {
     let s = streams
         .iter()
         .find(|s| s.codec_type.as_deref() == Some("video"))?;
@@ -236,6 +257,7 @@ fn parse_video_stream(streams: &[FfprobeStream]) -> Option<VideoStream> {
         .duration
         .as_deref()
         .and_then(|d| d.parse::<f64>().ok())
+        .or(format_duration)
         .unwrap_or(0.0);
 
     #[allow(clippy::cast_possible_truncation)]
@@ -433,7 +455,7 @@ mod tests {
         }"#;
 
         let parsed: FfprobeOutput = serde_json::from_str(json).unwrap();
-        let video = parse_video_stream(&parsed.streams).unwrap();
+        let video = parse_video_stream(&parsed.streams, None).unwrap();
         assert_eq!(video.codec, "vp9");
         assert_eq!(video.width, 3840);
         assert_eq!(video.height, 2160);
@@ -447,5 +469,40 @@ mod tests {
         assert_eq!(audio.codec, "opus");
         assert_eq!(audio.channels, Some(2));
         assert_eq!(audio.samplingrate, Some(48000));
+    }
+
+    #[test]
+    fn test_parse_ffprobe_format_duration_fallback() {
+        let json = r#"{
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "av1",
+                    "width": 3840,
+                    "height": 2160,
+                    "display_aspect_ratio": "16:9",
+                    "r_frame_rate": "24000/1001"
+                },
+                {
+                    "codec_type": "audio",
+                    "codec_name": "opus",
+                    "channels": 2,
+                    "sample_rate": "48000"
+                }
+            ],
+            "format": {
+                "duration": "1320.5"
+            }
+        }"#;
+
+        let parsed: FfprobeOutput = serde_json::from_str(json).unwrap();
+        let format_duration = parsed
+            .format
+            .as_ref()
+            .and_then(|f| f.duration.as_deref())
+            .and_then(|d| d.parse::<f64>().ok());
+        let video = parse_video_stream(&parsed.streams, format_duration).unwrap();
+        assert_eq!(video.durationinseconds, 1320);
+        assert_eq!(video.duration, "22:00");
     }
 }
