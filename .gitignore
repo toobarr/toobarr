@@ -4,3 +4,4 @@ cookies*
 data/
 static/
 tubarr.db
+*.db

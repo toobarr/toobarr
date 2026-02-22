@@ -209,7 +209,7 @@ async fn process_download(
                                     max_percent = percent;
                                 }
                                 let display_percent = max_percent;
-                                tracing::info!("Download {} progress: {:.1}% (max: {:.1}%)", download_id, percent, display_percent);
+                                tracing::trace!("Download {} progress: {:.1}% (max: {:.1}%)", download_id, percent, display_percent);
                                 let _ = Download::update_progress(&pool, &download_id, display_percent).await;
 
                                 let mut states = download_states.write().await;
