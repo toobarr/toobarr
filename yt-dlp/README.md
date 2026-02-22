@@ -2,124 +2,46 @@
 
 Async Rust wrapper for the [yt-dlp](https://github.com/yt-dlp/yt-dlp) CLI.
 
-## Requirements
-
-- yt-dlp must be installed and available in PATH (or specify a custom path)
-
-## Usage
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-yt-dlp = { git = "https://forgejo.nw8.xyz/todd/yt-dlp" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-```
-
-### Basic Example
-
-```rust
-use yt_dlp::{YtDlp, Result};
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = YtDlp::new();
-
-    // Check yt-dlp is available
-    let version = client.check_binary().await?;
-    println!("yt-dlp version: {}", version);
-
-    // Get video metadata
-    let info = client.get_video_info("https://www.youtube.com/watch?v=dQw4w9WgXcQ").await?;
-    println!("Title: {}", info.title);
-    println!("Duration: {:?}s", info.duration);
-
-    // Download video
-    client.download("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "video.mp4").await?;
-
-    Ok(())
-}
-```
-
-### Download with Progress
-
-```rust
-use yt_dlp::{YtDlp, DownloadOptions, DownloadEvent};
-use tokio_stream::StreamExt;
-
-#[tokio::main]
-async fn main() -> yt_dlp::Result<()> {
-    let client = YtDlp::new();
-    let options = DownloadOptions::new()
-        .embed_metadata(true)
-        .embed_thumbnail(true);
-
-    let mut stream = client.download_with_progress(
-        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "video.mp4",
-        &options
-    );
-
-    while let Some(event) = stream.next().await {
-        match event? {
-            DownloadEvent::Progress(p) => {
-                println!("{:.1}% - {}", p.percent.unwrap_or(0.0), p.format_speed().unwrap_or_default());
-            }
-            DownloadEvent::Finished { filename } => {
-                println!("Downloaded: {}", filename);
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
-}
-```
-
-### Audio Extraction
-
-```rust
-let client = YtDlp::new();
-client.download_audio("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "audio.mp3").await?;
-```
-
-### Builder Pattern
-
-```rust
-let client = YtDlp::new();
-client
-    .build_download("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-    .embed_metadata(true)
-    .embed_thumbnail(true)
-    .download("video.mp4")
-    .await?;
-```
-
 ## API
 
-### Client
+### `YtDlp`
 
-- `YtDlp::new()` - Create client using yt-dlp from PATH
-- `YtDlp::with_binary(path)` - Specify yt-dlp binary location
-- `check_binary()` - Verify yt-dlp is available, returns version
-- `get_video_info(url)` - Extract metadata without downloading
-- `get_playlist_info(url)` - Extract playlist metadata
-- `list_formats(url)` - List available formats
-- `download(url, output)` - Simple download
-- `download_with_options(url, output, options)` - Download with options
-- `download_with_progress(url, output, options)` - Returns async stream of events
-- `download_audio(url, output)` - Extract audio as MP3
-- `build_download(url)` - Fluent builder pattern
+| Method | Description |
+|--------|-------------|
+| `YtDlp::new()` | Create client using `yt-dlp` from `PATH` |
+| `YtDlp::with_binary(path)` | Specify `yt-dlp` binary path |
+| `set_binary(path)` | Change binary path |
+| `set_cookies_file(path)` | Set Netscape cookies file |
+| `set_extra_args(args)` | Set additional CLI arguments |
+| `set_ffmpeg_location(path)` | Set ffmpeg binary path |
+| `set_env(key, value)` | Set environment variable for subprocess |
+| `check_binary()` | Verify `yt-dlp` is available, returns version string |
+| `get_video_info(url)` | Fetch video metadata without downloading |
+| `get_playlist_info(url)` | Fetch playlist metadata and entries |
+| `list_formats(url)` | List available download formats |
+| `download(url, output)` | Download to file |
+| `download_with_options(url, output, options)` | Download with `DownloadOptions` |
+| `download_with_progress(url, output, options)` | Returns a `Stream<DownloadEvent>` |
+| `download_audio(url, output)` | Download and extract audio as MP3 |
+| `build_download(url)` | Fluent `DownloadBuilder` |
+
+### `DownloadBuilder`
+
+Constructed via `YtDlp::build_download(url)`. Chainable methods: `format`, `container`, `output_template`, `embed_thumbnail`, `embed_metadata`, `embed_subtitles`, `extract_audio`, `audio_format`, `audio_quality`, `cookies_file`, `rate_limit`. Terminates with `download(output)` or `download_with_progress(output)`.
 
 ### Types
 
-- `VideoInfo` - Video metadata (title, duration, formats, thumbnails, etc.)
-- `PlaylistInfo` - Playlist metadata with entries
-- `Format` - Available format details (resolution, codecs, filesize)
-- `DownloadOptions` - Configuration (format, container, embed options, etc.)
-- `DownloadEvent` - Progress stream events
-- `DownloadProgress` - Download stats (bytes, speed, ETA, percent)
+| Type | Description |
+|------|-------------|
+| `VideoInfo` | Video metadata (title, duration, formats, thumbnails, etc.) |
+| `PlaylistInfo` | Playlist metadata with `entries: Vec<VideoInfo>` |
+| `Format` | Format details (resolution, codecs, filesize) |
+| `DownloadOptions` | Download configuration |
+| `DownloadEvent` | Progress stream event (see variants below) |
+| `DownloadProgress` | Download stats (bytes, speed, ETA, percent) |
+| `OutputFormat` | Enum: `BestVideo`, `BestAudio`, `Custom(String)` |
+| `Container` | Enum: `Mp4`, `Mkv`, `Webm` |
 
-## License
+### `DownloadEvent` variants
 
-MIT
+`Extracting`, `DownloadStarted`, `Progress(DownloadProgress)`, `MergingFormats`, `EmbeddingThumbnail`, `EmbeddingMetadata`, `PostProcessing`, `Warning`, `Error`, `Finished`

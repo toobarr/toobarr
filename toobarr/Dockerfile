@@ -2,15 +2,15 @@
 FROM rust:1.92-slim AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y pkg-config libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+COPY Cargo.toml Cargo.lock ./
 COPY yt-dlp ./yt-dlp
-COPY toobarr/Cargo.toml toobarr/Cargo.lock ./toobarr/
+COPY toobarr/Cargo.toml ./toobarr/Cargo.toml
 COPY toobarr/src ./toobarr/src
 COPY toobarr/migrations ./toobarr/migrations
 COPY toobarr/templates ./toobarr/templates
-WORKDIR /build/toobarr
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/build/toobarr/target \
-    cargo build --release && cp target/release/toobarr /toobarr
+    --mount=type=cache,target=/build/target \
+    cargo build --release -p toobarr && cp target/release/toobarr /toobarr
 
 FROM debian:bookworm-slim
 RUN apt-get update && \
